@@ -5,6 +5,7 @@ from langchain.vectorstores import FAISS
 from langchain import OpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
 import os
 import pickle
 import textract
@@ -26,16 +27,19 @@ class Pastor:
             chunks = self.split_txt()
             print(f"Creating {self.db_name}...")
             self.create_faiss_db(chunks)
-        
+
         self.load_faiss_db()
+        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        self.qa_chain = ConversationalRetrievalChain.from_llm(OpenAI(temperature=0.05), self.db.as_retriever(), memory=memory)
 
 
     def run(self):
+        print("Starting chat. Type 'q' or 'exit' to quit.")
         while True:
             query = input("Ask you question: ")
             if not query:
                 continue
-            if query == "q":
+            if query == "q" or query == "exit":
                 return
             res = self.search(query)
             print(res)
@@ -43,16 +47,15 @@ class Pastor:
 
 
     def parse_pdf(self):
-        text = textract.process(self.pdfPath)
-        with open(self.outputPath, 'w+') as f:
+        text = textract.process(self.pdf_file)
+        with open(self.txt_file, 'w+') as f:
             f.write(text.decode('utf-8'))
 
 
     def split_txt(self):
-        with open(self.txtPath, "r") as f:
+        with open(self.txt_file, "r") as f:
             text = f.read()
 
-        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
         text_splitter = CharacterTextSplitter(chunk_size=1250, separator="\n")
         chunks = []
         splits = text_splitter.split_text(text)
@@ -65,7 +68,7 @@ class Pastor:
         store = FAISS.from_texts(chunks, OpenAIEmbeddings())
         faiss.write_index(store.index, "chunks.index")
         store.index = None
-        with open(db_name, "wb") as f:
+        with open(self.db_name, "wb") as f:
             pickle.dump(store, f)
 
 
@@ -80,10 +83,8 @@ class Pastor:
 
 
     def search(self, query):
-        chain = ConversationalRetrievalChain.from_llm(OpenAI(temperature=0.1), self.db.as_retriever())
-        result = chain({"question": query, "chat_history": []})
-        return result
-
+        result = self.qa_chain({"question": query})
+        return result["answer"]
 
 
 p = Pastor()
