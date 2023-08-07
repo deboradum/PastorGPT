@@ -36,7 +36,7 @@ class Pastor:
     def run(self):
         print("Starting chat. Type 'q' or 'exit' to quit.")
         while True:
-            query = input("Ask you question: ")
+            query = input("Ask your question: ")
             if not query:
                 continue
             if query == "q" or query == "exit":
