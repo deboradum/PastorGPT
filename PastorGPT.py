@@ -9,7 +9,6 @@ from langchain.memory import ConversationBufferMemory
 import os
 import pickle
 import textract
-from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
 
 class Pastor:
